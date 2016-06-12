@@ -17,8 +17,8 @@ func TestMain(t *testing.T) {
 	data, err := getDataFromFile("data/training.tsv", FeatureList)
 	assert.Nil(err)
 
-	trainingData := []map[string]feature.Feature{}
-	testData := []map[string]feature.Feature{}
+	trainingData := []map[string]feature.Instance{}
+	testData := []map[string]feature.Instance{}
 
 	for _, datum := range data {
 		if rand.Float64() < 0.5 {
@@ -29,7 +29,7 @@ func TestMain(t *testing.T) {
 	}
 
 	dt := model.DecisionTree{}
-	err = dt.Train(trainingData, ConcreteFeatureList, ConcreteFeatureList[14].(feature.Discrete))
+	err = dt.Train(trainingData, FeatureList, IncomeFeature)
 	assert.Nil(err)
 
 	predictions, err := dt.Predict(testData, IncomeFeature)
@@ -39,7 +39,7 @@ func TestMain(t *testing.T) {
 	correct := 0
 
 	for index, testDatum := range testData {
-		if (predictions[index]).Value == (testDatum["income"]).(feature.Discrete).Value {
+		if (predictions[index]).DiscreteValue == (testDatum[IncomeFeature.Name]).DiscreteValue {
 			correct += 1
 		}
 

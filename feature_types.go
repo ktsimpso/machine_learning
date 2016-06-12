@@ -4,7 +4,7 @@ import (
 	"github.com/ktsimpso/machine_learning/feature"
 )
 
-var FeatureList = []feature.Type{
+var FeatureList = []feature.Feature{
 	AgeFeature,
 	WorkClassFeature,
 	SampleWeightFeature,
@@ -22,111 +22,14 @@ var FeatureList = []feature.Type{
 	IncomeFeature,
 }
 
-//TODO: remove this once I fix the types....
-var ConcreteFeatureList = []feature.Feature{}
+var AgeFeature = feature.NewContinous("age")
+var SampleWeightFeature = feature.NewContinous("sampleWeight")
+var EducationNumberFeature = feature.NewContinous("educationNumber")
+var CapitalGainFeature = feature.NewContinous("capitalGain")
+var CapitalLossFeature = feature.NewContinous("capitalLoss")
+var HoursPerWeekFeature = feature.NewContinous("HoursPerWeek")
 
-func init() {
-	f, err := AgeFeature("1")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = WorkClassFeature("Private")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = SampleWeightFeature("1")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = EducationFeature("Bachelors")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = EducationNumberFeature("1")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = MaritalStatusFeature("Divorced")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = OccupationFeature("Sales")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = RelationshipFeature("Wife")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = RaceFeature("Other")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = SexFeature("Female")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = CapitalGainFeature("1")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = CapitalLossFeature("1")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = HoursPerWeekFeature("1")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = NativeCountryFeature("Cambodia")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-
-	f, err = IncomeFeature(">50K")
-	if err != nil {
-		panic(err)
-	}
-	ConcreteFeatureList = append(ConcreteFeatureList, f)
-}
-
-//End TODO
-
-var AgeFeature = feature.NewContinousType("age")
-var SampleWeightFeature = feature.NewContinousType("sampleWeight")
-var EducationNumberFeature = feature.NewContinousType("educationNumber")
-var CapitalGainFeature = feature.NewContinousType("capitalGain")
-var CapitalLossFeature = feature.NewContinousType("capitalLoss")
-var HoursPerWeekFeature = feature.NewContinousType("HoursPerWeek")
-
-var WorkClassFeature = feature.NewDiscreteType("workClass", []string{
+var WorkClassFeature = feature.NewDiscrete("workClass", []string{
 	"Private",
 	"Self-emp-not-inc",
 	"Self-emp-inc",
@@ -137,7 +40,7 @@ var WorkClassFeature = feature.NewDiscreteType("workClass", []string{
 	"Never-worked",
 })
 
-var EducationFeature = feature.NewDiscreteType("education", []string{
+var EducationFeature = feature.NewDiscrete("education", []string{
 	"Bachelors",
 	"Some-college",
 	"11th",
@@ -156,7 +59,7 @@ var EducationFeature = feature.NewDiscreteType("education", []string{
 	"Preschool",
 })
 
-var MaritalStatusFeature = feature.NewDiscreteType("maritalStatus", []string{
+var MaritalStatusFeature = feature.NewDiscrete("maritalStatus", []string{
 	"Married-civ-spouse",
 	"Divorced",
 	"Never-married",
@@ -166,7 +69,7 @@ var MaritalStatusFeature = feature.NewDiscreteType("maritalStatus", []string{
 	"Married-AF-spouse",
 })
 
-var OccupationFeature = feature.NewDiscreteType("occupation", []string{
+var OccupationFeature = feature.NewDiscrete("occupation", []string{
 	"Tech-support",
 	"Craft-repair",
 	"Other-service",
@@ -183,7 +86,7 @@ var OccupationFeature = feature.NewDiscreteType("occupation", []string{
 	"Armed-Forces",
 })
 
-var RelationshipFeature = feature.NewDiscreteType("relationship", []string{
+var RelationshipFeature = feature.NewDiscrete("relationship", []string{
 	"Wife",
 	"Own-child",
 	"Husband",
@@ -192,7 +95,7 @@ var RelationshipFeature = feature.NewDiscreteType("relationship", []string{
 	"Unmarried",
 })
 
-var RaceFeature = feature.NewDiscreteType("race", []string{
+var RaceFeature = feature.NewDiscrete("race", []string{
 	"White",
 	"Asian-Pac-Islander",
 	"Amer-Indian-Eskimo",
@@ -200,12 +103,12 @@ var RaceFeature = feature.NewDiscreteType("race", []string{
 	"Black",
 })
 
-var SexFeature = feature.NewDiscreteType("sex", []string{
+var SexFeature = feature.NewDiscrete("sex", []string{
 	"Female",
 	"Male",
 })
 
-var NativeCountryFeature = feature.NewDiscreteType("nativeCountry", []string{
+var NativeCountryFeature = feature.NewDiscrete("nativeCountry", []string{
 	"United-States",
 	"Cambodia",
 	"England",
@@ -249,7 +152,7 @@ var NativeCountryFeature = feature.NewDiscreteType("nativeCountry", []string{
 	"Holand-Netherlands",
 })
 
-var IncomeFeature = feature.NewDiscreteType("income", []string{
+var IncomeFeature = feature.NewDiscrete("income", []string{
 	">50K",
 	"<=50K",
 })

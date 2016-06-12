@@ -7,29 +7,30 @@ import (
 )
 
 type Model interface {
-	Train(data []map[string]feature.Feature, featureList []feature.Feature, resultFeature feature.Discrete) error
-	Predict(data []map[string]feature.Feature, ft feature.Type) ([]feature.Discrete, error)
+	Train(data []map[string]feature.Instance, featureList []feature.Feature, resultFeature feature.Feature) error
+	Predict(data []map[string]feature.Instance, ft feature.Feature) ([]feature.Instance, error)
 }
 
 type DecisionTree struct {
 	left          *DecisionTree
 	right         *DecisionTree
-	switchFeature feature.Feature
+	switchFeature feature.Instance
 	endState      bool
 	prediction    string
 }
 
-func (dt *DecisionTree) Train(data []map[string]feature.Feature, featureList []feature.Feature, resultFeature feature.Discrete) error {
+func (dt *DecisionTree) Train(data []map[string]feature.Instance, featureList []feature.Feature, resultFeature feature.Feature) error {
 	positiveCount := 0
 
 	for _, row := range data {
-		result, ok := row[resultFeature.Name()].(feature.Discrete)
+		result, ok := row[resultFeature.Name]
 
 		if !ok {
-			return errors.New("There was an error when coverting the resultFeature")
+			return errors.New("There was an error when getting the resultFeature")
 		}
 
-		if result.Value == 1 {
+		//TODO: support more than binary features
+		if result.DiscreteValue == 1 {
 			positiveCount += 1
 		}
 	}
@@ -40,11 +41,11 @@ func (dt *DecisionTree) Train(data []map[string]feature.Feature, featureList []f
 
 	// This whole code block makes me die a little...on the inside
 	for _, f := range featureList {
-		if f.Name() == resultFeature.Name() {
+		if f.Name == resultFeature.Name {
 			continue
 		}
 
-		switch fType := f.(type) {
+		switch f.Type {
 		case feature.Discrete:
 			type valuesCounters struct {
 				positiveCount, totalCount int64
@@ -52,13 +53,13 @@ func (dt *DecisionTree) Train(data []map[string]feature.Feature, featureList []f
 			valuesPositiveCount := map[int64]*valuesCounters{}
 
 			for _, row := range data {
-				value, ok := row[f.Name()]
-				result := row[resultFeature.Name()].(feature.Discrete).Value
+				value, ok := row[f.Name]
+				result := row[resultFeature.Name].DiscreteValue
 				if !ok {
 					continue
 				}
 
-				intValue := value.(feature.Discrete).Value
+				intValue := value.DiscreteValue
 
 				if _, ok := valuesPositiveCount[intValue]; !ok {
 					valuesPositiveCount[intValue] = &valuesCounters{0, 0}
@@ -75,7 +76,7 @@ func (dt *DecisionTree) Train(data []map[string]feature.Feature, featureList []f
 				score := math.Abs(float64(valueCount.positiveCount)/float64(valueCount.totalCount) - 0.5)
 				if score > highScore {
 					highScore = score
-					sf, err := fType.FeatureType(fType.ReverseValueMap[key])
+					sf, err := f.Create(f.ReverseValueMap[key])
 					if err != nil {
 						panic(err) // Too tired to think about this right now TODO: look into this later
 					}
@@ -88,25 +89,25 @@ func (dt *DecisionTree) Train(data []map[string]feature.Feature, featureList []f
 	}
 
 	if highScore > (normailzedBaseScore) {
-		leftData := []map[string]feature.Feature{}
-		rightData := []map[string]feature.Feature{}
+		leftData := []map[string]feature.Instance{}
+		rightData := []map[string]feature.Instance{}
 
 		for _, row := range data {
-			value, ok := row[dt.switchFeature.Name()]
+			value, ok := row[dt.switchFeature.Feature.Name]
 			if !ok {
 				leftData = append(leftData, row)
 				continue
 			}
 
-			switch typedValue := value.(type) {
+			switch value.Feature.Type {
 			case feature.Discrete:
-				if typedValue.Value == dt.switchFeature.(feature.Discrete).Value {
+				if value.DiscreteValue == dt.switchFeature.DiscreteValue {
 					rightData = append(rightData, row)
 				} else {
 					leftData = append(leftData, row)
 				}
 			case feature.Continuous:
-				if typedValue.Value > dt.switchFeature.(feature.Continuous).Value {
+				if value.ContinuousValue > dt.switchFeature.ContinuousValue {
 					rightData = append(rightData, row)
 				} else {
 					leftData = append(leftData, row)
@@ -131,8 +132,8 @@ func (dt *DecisionTree) Train(data []map[string]feature.Feature, featureList []f
 	return nil
 }
 
-func (dt *DecisionTree) Predict(data []map[string]feature.Feature, ft feature.Type) ([]feature.Discrete, error) {
-	results := []feature.Discrete{}
+func (dt *DecisionTree) Predict(data []map[string]feature.Instance, ft feature.Feature) ([]feature.Instance, error) {
+	results := []feature.Instance{}
 
 	for _, row := range data {
 		result, err := dt.predictRow(row, ft)
@@ -146,35 +147,35 @@ func (dt *DecisionTree) Predict(data []map[string]feature.Feature, ft feature.Ty
 	return results, nil
 }
 
-func (dt *DecisionTree) predictRow(row map[string]feature.Feature, ft feature.Type) (feature.Discrete, error) {
+func (dt *DecisionTree) predictRow(row map[string]feature.Instance, ft feature.Feature) (feature.Instance, error) {
 	if dt.endState {
-		predictionType, err := ft(dt.prediction)
+		predictionType, err := ft.Create(dt.prediction)
 		if err != nil {
-			return feature.Discrete{}, err
+			return feature.Instance{}, err
 		}
-		return predictionType.(feature.Discrete), nil
+		return predictionType, nil
 	}
 
-	determiningFeature, ok := row[dt.switchFeature.Name()]
+	determiningFeature, ok := row[dt.switchFeature.Feature.Name]
 
 	if !ok {
 		return dt.left.predictRow(row, ft)
 	}
 
-	switch typedFeature := determiningFeature.(type) {
+	switch determiningFeature.Feature.Type {
 	case feature.Discrete:
-		if typedFeature.Value == dt.switchFeature.(feature.Discrete).Value {
+		if determiningFeature.DiscreteValue == dt.switchFeature.DiscreteValue {
 			return dt.right.predictRow(row, ft)
 		} else {
 			return dt.left.predictRow(row, ft)
 		}
 	case feature.Continuous:
-		if typedFeature.Value > dt.switchFeature.(feature.Continuous).Value {
+		if determiningFeature.ContinuousValue > dt.switchFeature.ContinuousValue {
 			return dt.right.predictRow(row, ft)
 		} else {
 			return dt.left.predictRow(row, ft)
 		}
 	default:
-		return feature.Discrete{}, errors.New("Unknown Feature Type")
+		return feature.Instance{}, errors.New("Unknown Feature Type")
 	}
 }

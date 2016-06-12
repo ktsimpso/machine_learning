@@ -6,55 +6,53 @@ import (
 	"strconv"
 )
 
-type Feature interface {
-	Name() string
-}
+type FeatureType int
 
-type Type func(value string) (Feature, error)
+const (
+	Continuous FeatureType = iota
+	Discrete
+)
 
-type baseFeature struct {
-	name string
-}
-
-func (bf baseFeature) Name() string {
-	return bf.name
-}
-
-type Continuous struct {
-	baseFeature
-	Value float64
-}
-
-func NewContinousType(name string) Type {
-	return func(value string) (Feature, error) {
-		floatValue, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return nil, err
-		}
-
-		return Continuous{
-			baseFeature{
-				name,
-			},
-			floatValue,
-		}, nil
-	}
-}
-
-type Discrete struct {
-	baseFeature
-	Value           int64
-	Values          []string
-	FeatureType     Type
+type Feature struct {
+	Type            FeatureType
+	Name            string
+	Create          Create
 	ValueMap        map[string]int64
 	ReverseValueMap map[int64]string
 }
 
-func (d Discrete) String() string {
-	return fmt.Sprintf("{name{%s} Value: {%d, %s}}", d.name, d.Value, d.ReverseValueMap[d.Value])
+type Instance struct {
+	Feature         Feature
+	DiscreteValue   int64
+	ContinuousValue float64
 }
 
-func NewDiscreteType(name string, values []string) Type {
+type Create func(value string) (Instance, error)
+
+func NewContinous(name string) Feature {
+	var this Feature
+	this = Feature{
+		Continuous,
+		name,
+		func(value string) (Instance, error) {
+			floatValue, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				return Instance{}, err
+			}
+
+			return Instance{
+				this,
+				0,
+				floatValue,
+			}, nil
+		},
+		map[string]int64{},
+		map[int64]string{},
+	}
+	return this
+}
+
+func NewDiscrete(name string, values []string) Feature {
 	valueMap := map[string]int64{}
 	reverseValueMap := map[int64]string{}
 
@@ -63,25 +61,25 @@ func NewDiscreteType(name string, values []string) Type {
 		reverseValueMap[int64(index)] = value
 	}
 
-	var featureType Type
+	var this Feature
+	this = Feature{
+		Discrete,
+		name,
+		func(value string) (Instance, error) {
+			index, ok := valueMap[value]
+			if !ok {
+				return Instance{}, errors.New(fmt.Sprintf("Value type: %s not found for Discrete with name: %s", value, name))
+			}
 
-	featureType = func(value string) (Feature, error) {
-		index, ok := valueMap[value]
-		if !ok {
-			return nil, errors.New(fmt.Sprintf("Value type: %s not found for DiscreteFeature with name: %s", value, name))
-		}
-
-		return Discrete{
-			baseFeature{
-				name,
-			},
-			index,
-			values,
-			featureType,
-			valueMap,
-			reverseValueMap,
-		}, nil
+			return Instance{
+				this,
+				index,
+				0.0,
+			}, nil
+		},
+		valueMap,
+		reverseValueMap,
 	}
 
-	return featureType
+	return this
 }

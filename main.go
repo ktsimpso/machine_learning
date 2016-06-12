@@ -24,7 +24,7 @@ func main() {
 	fmt.Println(len(data))
 
 	dt := model.DecisionTree{}
-	err = dt.Train(data, ConcreteFeatureList, ConcreteFeatureList[14].(feature.Discrete))
+	err = dt.Train(data, FeatureList, IncomeFeature)
 	if err != nil {
 		panic(err)
 	}
@@ -44,7 +44,7 @@ func main() {
 	}
 
 	for _, prediction := range predictions {
-		output.Guesses = append(output.Guesses, prediction.ReverseValueMap[prediction.Value])
+		output.Guesses = append(output.Guesses, prediction.Feature.ReverseValueMap[prediction.DiscreteValue])
 	}
 
 	jsonOutput, err := json.Marshal(output)
@@ -58,7 +58,7 @@ func main() {
 	}
 }
 
-func getDataFromFile(filename string, features []feature.Type) ([]map[string]feature.Feature, error) {
+func getDataFromFile(filename string, features []feature.Feature) ([]map[string]feature.Instance, error) {
 	dataFile, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func getDataFromFile(filename string, features []feature.Type) ([]map[string]fea
 	csvReader.Comma = '\t'
 	csvReader.FieldsPerRecord = len(features)
 
-	data := []map[string]feature.Feature{}
+	data := []map[string]feature.Instance{}
 
 	for {
 		record, err := csvReader.Read()
@@ -86,17 +86,17 @@ func getDataFromFile(filename string, features []feature.Type) ([]map[string]fea
 	return data, nil
 }
 
-func recordToFeatures(record []string, featureList []feature.Type) map[string]feature.Feature {
-	features := map[string]feature.Feature{}
+func recordToFeatures(record []string, featureList []feature.Feature) map[string]feature.Instance {
+	features := map[string]feature.Instance{}
 
-	for index, featureType := range featureList {
-		f, err := featureType(record[index])
+	for index, feature := range featureList {
+		f, err := feature.Create(record[index])
 		if err != nil {
 			//fmt.Println(err)
 			continue
 		}
 
-		features[f.Name()] = f
+		features[feature.Name] = f
 	}
 
 	return features
