@@ -16,7 +16,7 @@ type DecisionTree struct {
 	right         *DecisionTree
 	switchFeature feature.Instance
 	endState      bool
-	prediction    string
+	prediction    feature.Instance
 }
 
 func (dt *DecisionTree) Train(data []map[string]feature.Instance, featureList []feature.Feature, resultFeature feature.Feature) error {
@@ -39,7 +39,6 @@ func (dt *DecisionTree) Train(data []map[string]feature.Instance, featureList []
 	normailzedBaseScore := math.Abs(baseScore - 0.5)
 	highScore := 0.0
 
-	// This whole code block makes me die a little...on the inside
 	for _, f := range featureList {
 		if f.Name == resultFeature.Name {
 			continue
@@ -78,17 +77,91 @@ func (dt *DecisionTree) Train(data []map[string]feature.Instance, featureList []
 					highScore = score
 					sf, err := f.Create(f.ReverseValueMap[key])
 					if err != nil {
-						panic(err) // Too tired to think about this right now TODO: look into this later
+						panic(err)
 					}
 					dt.switchFeature = sf
 				}
 			}
 		case feature.Continuous:
-			//TODO: continuous shits
+			//TODO: this method of continuous functions doesn't seem to perform at all! Should probably come up with something better
+			max := -math.MaxFloat64
+			min := math.MaxFloat64
+
+			for _, row := range data {
+				value, ok := row[f.Name]
+				if !ok {
+					continue
+				}
+
+				floatValue := value.ContinuousValue
+				max = math.Max(max, floatValue)
+				min = math.Min(min, floatValue)
+			}
+
+			pivot := (max + min) / 2
+			lastPivot := pivot
+			bestScore := 0.0
+			lastBestScore := 0.0
+
+			for {
+				leftPositiveCount := 0
+				leftTotal := 0
+				rightPositiveCount := 0
+				rightTotal := 0
+
+				for _, row := range data {
+					value, ok := row[f.Name]
+					result := row[resultFeature.Name].DiscreteValue
+					if !ok {
+						continue
+					}
+
+					floatValue := value.ContinuousValue
+
+					if floatValue < pivot {
+						leftTotal += 1
+						if result == 1 {
+							leftPositiveCount += 1
+						}
+					} else {
+						rightTotal += 1
+						if result == 1 {
+							rightPositiveCount += 1
+						}
+					}
+				}
+
+				leftScore := math.Abs(float64(leftPositiveCount)/float64(leftTotal) - 0.5)
+				rightScore := math.Abs(float64(rightPositiveCount)/float64(rightTotal) - 0.5)
+				bestScore = math.Max(leftScore, rightScore)
+
+				if bestScore > lastBestScore {
+					lastPivot = pivot
+					lastBestScore = bestScore
+
+					if leftScore > rightScore {
+						pivot = (min + pivot) / 2
+					} else {
+						pivot = (max + pivot) / 2
+					}
+				} else {
+					break
+				}
+			}
+
+			if bestScore > highScore {
+				highScore = bestScore
+				sf, err := f.CreateContinuous(lastPivot)
+				if err != nil {
+					panic(err)
+				}
+				dt.switchFeature = sf
+			}
+
 		}
 	}
 
-	if highScore > (normailzedBaseScore) {
+	if highScore > normailzedBaseScore {
 		leftData := []map[string]feature.Instance{}
 		rightData := []map[string]feature.Instance{}
 
@@ -99,19 +172,10 @@ func (dt *DecisionTree) Train(data []map[string]feature.Instance, featureList []
 				continue
 			}
 
-			switch value.Feature.Type {
-			case feature.Discrete:
-				if value.DiscreteValue == dt.switchFeature.DiscreteValue {
-					rightData = append(rightData, row)
-				} else {
-					leftData = append(leftData, row)
-				}
-			case feature.Continuous:
-				if value.ContinuousValue > dt.switchFeature.ContinuousValue {
-					rightData = append(rightData, row)
-				} else {
-					leftData = append(leftData, row)
-				}
+			if isFeatureRight(value, dt.switchFeature) {
+				rightData = append(rightData, row)
+			} else {
+				leftData = append(leftData, row)
 			}
 		}
 
@@ -122,10 +186,16 @@ func (dt *DecisionTree) Train(data []map[string]feature.Instance, featureList []
 		dt.right.Train(rightData, featureList, resultFeature)
 	} else {
 		dt.endState = true
+		var err error
+
 		if baseScore > 0.5 {
-			dt.prediction = resultFeature.ReverseValueMap[1]
+			dt.prediction, err = resultFeature.Create(resultFeature.ReverseValueMap[1])
 		} else {
-			dt.prediction = resultFeature.ReverseValueMap[0]
+			dt.prediction, err = resultFeature.Create(resultFeature.ReverseValueMap[0])
+		}
+
+		if err != nil {
+			return err
 		}
 	}
 
@@ -149,11 +219,7 @@ func (dt *DecisionTree) Predict(data []map[string]feature.Instance, ft feature.F
 
 func (dt *DecisionTree) predictRow(row map[string]feature.Instance, ft feature.Feature) (feature.Instance, error) {
 	if dt.endState {
-		predictionType, err := ft.Create(dt.prediction)
-		if err != nil {
-			return feature.Instance{}, err
-		}
-		return predictionType, nil
+		return dt.prediction, nil
 	}
 
 	determiningFeature, ok := row[dt.switchFeature.Feature.Name]
@@ -162,20 +228,20 @@ func (dt *DecisionTree) predictRow(row map[string]feature.Instance, ft feature.F
 		return dt.left.predictRow(row, ft)
 	}
 
-	switch determiningFeature.Feature.Type {
+	if isFeatureRight(determiningFeature, dt.switchFeature) {
+		return dt.right.predictRow(row, ft)
+	} else {
+		return dt.left.predictRow(row, ft)
+	}
+}
+
+func isFeatureRight(testFeature, switchFeature feature.Instance) bool {
+	switch testFeature.Feature.Type {
 	case feature.Discrete:
-		if determiningFeature.DiscreteValue == dt.switchFeature.DiscreteValue {
-			return dt.right.predictRow(row, ft)
-		} else {
-			return dt.left.predictRow(row, ft)
-		}
+		return testFeature.DiscreteValue == switchFeature.DiscreteValue
 	case feature.Continuous:
-		if determiningFeature.ContinuousValue > dt.switchFeature.ContinuousValue {
-			return dt.right.predictRow(row, ft)
-		} else {
-			return dt.left.predictRow(row, ft)
-		}
+		return testFeature.ContinuousValue > switchFeature.ContinuousValue
 	default:
-		return feature.Instance{}, errors.New("Unknown Feature Type")
+		return false
 	}
 }

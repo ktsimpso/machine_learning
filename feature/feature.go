@@ -14,11 +14,12 @@ const (
 )
 
 type Feature struct {
-	Type            FeatureType
-	Name            string
-	Create          Create
-	ValueMap        map[string]int64
-	ReverseValueMap map[int64]string
+	Type             FeatureType
+	Name             string
+	Create           Create
+	CreateContinuous CreateContinuous
+	ValueMap         map[string]int64
+	ReverseValueMap  map[int64]string
 }
 
 type Instance struct {
@@ -28,6 +29,7 @@ type Instance struct {
 }
 
 type Create func(value string) (Instance, error)
+type CreateContinuous func(value float64) (Instance, error)
 
 func NewContinous(name string) Feature {
 	var this Feature
@@ -44,6 +46,13 @@ func NewContinous(name string) Feature {
 				this,
 				0,
 				floatValue,
+			}, nil
+		},
+		func(value float64) (Instance, error) {
+			return Instance{
+				this,
+				0,
+				value,
 			}, nil
 		},
 		map[string]int64{},
@@ -76,6 +85,9 @@ func NewDiscrete(name string, values []string) Feature {
 				index,
 				0.0,
 			}, nil
+		},
+		func(value float64) (Instance, error) {
+			return Instance{}, errors.New(fmt.Sprintf("CreateContinous is not supported for Discrete with name: %s", name))
 		},
 		valueMap,
 		reverseValueMap,
