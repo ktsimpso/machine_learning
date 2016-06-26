@@ -1,8 +1,6 @@
 package feature
 
 import (
-	"errors"
-	"fmt"
 	"strconv"
 )
 
@@ -28,32 +26,44 @@ type Instance struct {
 	ContinuousValue float64
 }
 
-type Create func(value string) (Instance, error)
-type CreateContinuous func(value float64) (Instance, error)
+type TypeKey struct {
+	Name string
+	Type FeatureType
+}
+
+func (f Feature) TypeKey() TypeKey {
+	return TypeKey{
+		f.Name,
+		f.Type,
+	}
+}
+
+type Create func(value string) *Instance
+type CreateContinuous func(value float64) *Instance
 
 func NewContinous(name string) Feature {
 	var this Feature
 	this = Feature{
 		Continuous,
 		name,
-		func(value string) (Instance, error) {
+		func(value string) *Instance {
 			floatValue, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				return Instance{}, err
+				return nil
 			}
 
-			return Instance{
+			return &Instance{
 				this,
 				0,
 				floatValue,
-			}, nil
+			}
 		},
-		func(value float64) (Instance, error) {
-			return Instance{
+		func(value float64) *Instance {
+			return &Instance{
 				this,
 				0,
 				value,
-			}, nil
+			}
 		},
 		map[string]int64{},
 		map[int64]string{},
@@ -74,20 +84,20 @@ func NewDiscrete(name string, values []string) Feature {
 	this = Feature{
 		Discrete,
 		name,
-		func(value string) (Instance, error) {
+		func(value string) *Instance {
 			index, ok := valueMap[value]
 			if !ok {
-				return Instance{}, errors.New(fmt.Sprintf("Value type: %s not found for Discrete with name: %s", value, name))
+				return nil
 			}
 
-			return Instance{
+			return &Instance{
 				this,
 				index,
 				0.0,
-			}, nil
+			}
 		},
-		func(value float64) (Instance, error) {
-			return Instance{}, errors.New(fmt.Sprintf("CreateContinous is not supported for Discrete with name: %s", name))
+		func(value float64) *Instance {
+			return nil
 		},
 		valueMap,
 		reverseValueMap,

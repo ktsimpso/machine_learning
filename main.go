@@ -21,10 +21,10 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(len(data))
+	fmt.Println(len(data.Rows))
 
 	dt := model.DecisionTree{}
-	err = dt.Train(data, FeatureList, IncomeFeature)
+	err = dt.Train(data, IncomeFeature)
 	if err != nil {
 		panic(err)
 	}
@@ -58,10 +58,10 @@ func main() {
 	}
 }
 
-func getDataFromFile(filename string, features []feature.Feature) ([]map[string]feature.Instance, error) {
+func getDataFromFile(filename string, features []feature.Feature) (*feature.Table, error) {
 	dataFile, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return &feature.Table{}, err
 	}
 	defer dataFile.Close()
 
@@ -69,35 +69,19 @@ func getDataFromFile(filename string, features []feature.Feature) ([]map[string]
 	csvReader.Comma = '\t'
 	csvReader.FieldsPerRecord = len(features)
 
-	data := []map[string]feature.Instance{}
+	data := feature.CreateTable(features)
 
 	for {
-		record, err := csvReader.Read()
+		row, err := csvReader.Read()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return nil, err
+			return &feature.Table{}, err
 		}
 
-		data = append(data, recordToFeatures(record, features))
+		data.AddStringRow(row)
 	}
 
 	return data, nil
-}
-
-func recordToFeatures(record []string, featureList []feature.Feature) map[string]feature.Instance {
-	features := map[string]feature.Instance{}
-
-	for index, feature := range featureList {
-		f, err := feature.Create(record[index])
-		if err != nil {
-			//fmt.Println(err)
-			continue
-		}
-
-		features[feature.Name] = f
-	}
-
-	return features
 }
