@@ -43,3 +43,14 @@ func (t *Table) AddRow(row []*Instance) {
 
 	t.Rows = append(t.Rows, row)
 }
+
+func (t *Table) AddColumn(feature Feature, column []*Instance) {
+	//TODO: error checking
+	t.Features = append(t.Features, feature)
+	t.Columns = append(t.Columns, column)
+	t.FeatureMap[feature.TypeKey()] = len(t.Features) - 1
+
+	for index, row := range t.Rows {
+		t.Rows[index] = append(row, column[index])
+	}
+}

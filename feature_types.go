@@ -23,7 +23,9 @@ var FeatureList = []feature.Feature{
 }
 
 var AgeFeature = feature.NewContinous("age")
-var SampleWeightFeature = feature.NewContinous("sampleWeight")
+
+// Turning this feature "off" for now as it only creates noise TOOD: The program should figure this out on it's own
+var SampleWeightFeature = feature.NewDiscrete("sampleWeight", []string{}) //.NewContinous("sampleWeight")
 var EducationNumberFeature = feature.NewContinous("educationNumber")
 var CapitalGainFeature = feature.NewContinous("capitalGain")
 var CapitalLossFeature = feature.NewContinous("capitalLoss")

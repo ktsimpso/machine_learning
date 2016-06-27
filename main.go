@@ -29,7 +29,7 @@ func main() {
 		panic(err)
 	}
 
-	testData, err := getDataFromFile("data/test.tsv", FeatureList[:14])
+	testData, err := getDataFromFile("data/test.tsv", FeatureList[:len(FeatureList)-1])
 	if err != nil {
 		panic(err)
 	}
@@ -44,7 +44,7 @@ func main() {
 	}
 
 	for _, prediction := range predictions {
-		output.Guesses = append(output.Guesses, prediction.Feature.ReverseValueMap[prediction.DiscreteValue])
+		output.Guesses = append(output.Guesses, prediction.StringValue)
 	}
 
 	jsonOutput, err := json.Marshal(output)
@@ -81,6 +81,13 @@ func getDataFromFile(filename string, features []feature.Feature) (*feature.Tabl
 		}
 
 		data.AddStringRow(row)
+	}
+
+	for _, f := range FeatureList {
+		if f.Type == feature.Discrete {
+			continue
+		}
+		data.AddColumn(feature.ConvertContinuousToDiscrete(f, data.Columns[data.FeatureMap[f.TypeKey()]]))
 	}
 
 	return data, nil

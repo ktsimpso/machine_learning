@@ -18,8 +18,8 @@ func TestMain(t *testing.T) {
 	fmt.Println(len(data.Rows))
 	assert.Nil(err)
 
-	trainingData := feature.CreateTable(FeatureList)
-	testData := feature.CreateTable(FeatureList)
+	trainingData := feature.CreateTable(data.Features)
+	testData := feature.CreateTable(data.Features)
 
 	for _, row := range data.Rows {
 		if rand.Float64() < 0.5 {

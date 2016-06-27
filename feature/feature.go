@@ -1,6 +1,7 @@
 package feature
 
 import (
+	"math"
 	"strconv"
 )
 
@@ -16,14 +17,14 @@ type Feature struct {
 	Name             string
 	Create           Create
 	CreateContinuous CreateContinuous
-	ValueMap         map[string]int64
-	ReverseValueMap  map[int64]string
+	CreateDiscrete   CreateDiscrete
 }
 
 type Instance struct {
 	Feature         Feature
 	DiscreteValue   int64
 	ContinuousValue float64
+	StringValue     string
 }
 
 type TypeKey struct {
@@ -40,6 +41,7 @@ func (f Feature) TypeKey() TypeKey {
 
 type Create func(value string) *Instance
 type CreateContinuous func(value float64) *Instance
+type CreateDiscrete func(value int64) *Instance
 
 func NewContinous(name string) Feature {
 	var this Feature
@@ -56,6 +58,7 @@ func NewContinous(name string) Feature {
 				this,
 				0,
 				floatValue,
+				value,
 			}
 		},
 		func(value float64) *Instance {
@@ -63,10 +66,12 @@ func NewContinous(name string) Feature {
 				this,
 				0,
 				value,
+				strconv.FormatFloat(value, 'f', -1, 64),
 			}
 		},
-		map[string]int64{},
-		map[int64]string{},
+		func(value int64) *Instance {
+			return nil
+		},
 	}
 	return this
 }
@@ -94,14 +99,116 @@ func NewDiscrete(name string, values []string) Feature {
 				this,
 				index,
 				0.0,
+				value,
 			}
 		},
 		func(value float64) *Instance {
 			return nil
 		},
-		valueMap,
-		reverseValueMap,
+		func(value int64) *Instance {
+			stringValue, ok := reverseValueMap[value]
+			if !ok {
+				return nil
+			}
+
+			return &Instance{
+				this,
+				value,
+				0.0,
+				stringValue,
+			}
+		},
 	}
 
 	return this
+}
+
+func ConvertContinuousToDiscrete(feature Feature, features []*Instance) (Feature, []*Instance) {
+	total := 0.0
+	count := 0
+
+	//TODO: validation
+	for _, instance := range features {
+		if instance == nil {
+			continue
+		}
+
+		//TODO: this could overflow
+		total += instance.ContinuousValue
+		count += 1
+	}
+
+	mean := total / float64(count)
+	squaredDistance := 0.0
+
+	for _, instance := range features {
+		if instance == nil {
+			continue
+		}
+
+		distance := instance.ContinuousValue - mean
+		squaredDistance += distance * distance
+	}
+
+	standardDeviation := math.Sqrt(squaredDistance / (total - 1))
+
+	var this Feature
+	this = Feature{
+		Discrete,
+		feature.Name,
+		func(value string) *Instance {
+			floatValue, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				return nil
+			}
+
+			intValue := int64((floatValue - mean) / standardDeviation)
+
+			return &Instance{
+				this,
+				intValue,
+				floatValue,
+				value,
+			}
+		},
+		func(value float64) *Instance {
+			intValue := int64((value - mean) / standardDeviation)
+
+			return &Instance{
+				this,
+				intValue,
+				value,
+				strconv.FormatFloat(value, 'f', -1, 64),
+			}
+		},
+		func(value int64) *Instance {
+			floatValue := mean + float64(value)*standardDeviation
+
+			if value >= 0 {
+				floatValue += (standardDeviation / 2)
+			} else {
+				floatValue -= (standardDeviation / 2)
+			}
+
+			return &Instance{
+				this,
+				value,
+				floatValue,
+				strconv.FormatFloat(floatValue, 'f', -1, 64),
+			}
+		},
+	}
+
+	convertedFeatures := make([]*Instance, len(features))
+
+	for index, feature := range features {
+		if feature == nil {
+			convertedFeatures[index] = nil
+			continue
+		}
+
+		convertedFeatures[index] = this.CreateContinuous(feature.ContinuousValue)
+	}
+
+	return this, convertedFeatures
 }

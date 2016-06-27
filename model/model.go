@@ -68,77 +68,9 @@ func (dt *DecisionTree) Train(data *feature.Table, resultFeature feature.Feature
 				score := math.Abs(float64(valueCount.positiveCount)/float64(valueCount.totalCount) - 0.5)
 				if score > highScore {
 					highScore = score
-					sf := f.Create(f.ReverseValueMap[key])
+					sf := f.CreateDiscrete(key)
 					dt.switchFeature = sf
 				}
-			}
-		case feature.Continuous:
-			//TODO: this method of continuous functions doesn't seem to perform at all! Should probably come up with something better
-			max := -math.MaxFloat64
-			min := math.MaxFloat64
-
-			continuousColumn := data.Columns[data.FeatureMap[f.TypeKey()]]
-
-			for _, instance := range continuousColumn {
-				if instance == nil {
-					continue
-				}
-				max = math.Max(max, instance.ContinuousValue)
-				min = math.Min(min, instance.ContinuousValue)
-			}
-
-			pivot := (max + min) / 2
-			lastPivot := pivot
-			bestScore := 0.0
-			lastBestScore := 0.0
-
-			for {
-				leftPositiveCount := 0
-				leftTotal := 0
-				rightPositiveCount := 0
-				rightTotal := 0
-
-				for index, instance := range continuousColumn {
-					if instance == nil {
-						continue
-					}
-
-					resultValue := resultColumn[index].DiscreteValue
-
-					if instance.ContinuousValue < pivot {
-						leftTotal += 1
-						if resultValue == 1 {
-							leftPositiveCount += 1
-						}
-					} else {
-						rightTotal += 1
-						if resultValue == 1 {
-							rightPositiveCount += 1
-						}
-					}
-				}
-
-				leftScore := math.Abs(float64(leftPositiveCount)/float64(leftTotal) - 0.5)
-				rightScore := math.Abs(float64(rightPositiveCount)/float64(rightTotal) - 0.5)
-				bestScore = math.Max(leftScore, rightScore)
-
-				if bestScore > lastBestScore {
-					lastPivot = pivot
-					lastBestScore = bestScore
-
-					if leftScore > rightScore {
-						pivot = (min + pivot) / 2
-					} else {
-						pivot = (max + pivot) / 2
-					}
-				} else {
-					break
-				}
-			}
-
-			if bestScore > highScore {
-				highScore = bestScore
-				dt.switchFeature = f.CreateContinuous(lastPivot)
 			}
 		}
 	}
@@ -169,9 +101,9 @@ func (dt *DecisionTree) Train(data *feature.Table, resultFeature feature.Feature
 		var err error
 
 		if baseScore > 0.5 {
-			dt.prediction = resultFeature.Create(resultFeature.ReverseValueMap[1])
+			dt.prediction = resultFeature.CreateDiscrete(1)
 		} else {
-			dt.prediction = resultFeature.Create(resultFeature.ReverseValueMap[0])
+			dt.prediction = resultFeature.CreateDiscrete(0)
 		}
 
 		if err != nil {
