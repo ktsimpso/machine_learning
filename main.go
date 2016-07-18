@@ -21,7 +21,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(len(data.Rows))
+	fmt.Println(data.NumRows())
 
 	dt := model.DecisionTree{}
 	err = dt.Train(data, IncomeFeature)
@@ -87,7 +87,7 @@ func getDataFromFile(filename string, features []feature.Feature) (*feature.Tabl
 		if f.Type == feature.Discrete {
 			continue
 		}
-		data.AddColumn(feature.ConvertContinuousToDiscrete(f, data.Columns[data.FeatureMap[f.TypeKey()]]))
+		data.AddColumn(feature.ConvertContinuousToDiscrete(data.GetColumn(f.TypeKey())))
 	}
 
 	return data, nil

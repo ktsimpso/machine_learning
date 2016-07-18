@@ -15,19 +15,22 @@ func TestMain(t *testing.T) {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	data, err := getDataFromFile("data/training.tsv", FeatureList)
-	fmt.Println(len(data.Rows))
+	fmt.Println(data.NumRows())
 	assert.Nil(err)
 
-	trainingData := feature.CreateTable(data.Features)
-	testData := feature.CreateTable(data.Features)
+	trainingDataBuilder := feature.NewTableViewBuilder(data).WithAllColumns()
+	testDataBuidler := feature.NewTableViewBuilder(data).WithAllColumns()
 
-	for _, row := range data.Rows {
+	for row := range data.Rows() {
 		if rand.Float64() < 0.5 {
-			trainingData.AddRow(row)
+			trainingDataBuilder.WithRow(row.Index())
 		} else {
-			testData.AddRow(row)
+			testDataBuidler.WithRow(row.Index())
 		}
 	}
+
+	trainingData := trainingDataBuilder.Build()
+	testData := testDataBuidler.Build()
 
 	dt := model.DecisionTree{}
 	err = dt.Train(trainingData, IncomeFeature)
@@ -39,8 +42,8 @@ func TestMain(t *testing.T) {
 	count := 0
 	correct := 0
 
-	for index, testDatum := range testData.Columns[testData.FeatureMap[IncomeFeature.TypeKey()]] {
-		if (predictions[index]).DiscreteValue == testDatum.DiscreteValue {
+	for record := range testData.GetColumn(IncomeFeature.TypeKey()).Instances() {
+		if (predictions[record.Index]).DiscreteValue == record.Instance.DiscreteValue {
 			correct += 1
 		}
 
@@ -56,8 +59,8 @@ func TestMain(t *testing.T) {
 	count = 0
 	correct = 0
 
-	for index, trainingDatum := range trainingData.Columns[trainingData.FeatureMap[IncomeFeature.TypeKey()]] {
-		if (predictions[index]).DiscreteValue == trainingDatum.DiscreteValue {
+	for record := range trainingData.GetColumn(IncomeFeature.TypeKey()).Instances() {
+		if (predictions[record.Index]).DiscreteValue == record.Instance.DiscreteValue {
 			correct += 1
 		}
 

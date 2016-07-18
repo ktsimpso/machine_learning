@@ -123,30 +123,30 @@ func NewDiscrete(name string, values []string) Feature {
 	return this
 }
 
-func ConvertContinuousToDiscrete(feature Feature, features []*Instance) (Feature, []*Instance) {
+func ConvertContinuousToDiscrete(column Column) (Feature, []*Instance) {
 	total := 0.0
 	count := 0
 
 	//TODO: validation
-	for _, instance := range features {
-		if instance == nil {
+	for record := range column.Instances() {
+		if record.Instance == nil {
 			continue
 		}
 
 		//TODO: this could overflow
-		total += instance.ContinuousValue
+		total += record.Instance.ContinuousValue
 		count += 1
 	}
 
 	mean := total / float64(count)
 	squaredDistance := 0.0
 
-	for _, instance := range features {
-		if instance == nil {
+	for record := range column.Instances() {
+		if record.Instance == nil {
 			continue
 		}
 
-		distance := instance.ContinuousValue - mean
+		distance := record.Instance.ContinuousValue - mean
 		squaredDistance += distance * distance
 	}
 
@@ -155,7 +155,7 @@ func ConvertContinuousToDiscrete(feature Feature, features []*Instance) (Feature
 	var this Feature
 	this = Feature{
 		Discrete,
-		feature.Name,
+		column.Feature().Name,
 		func(value string) *Instance {
 			floatValue, err := strconv.ParseFloat(value, 64)
 			if err != nil {
@@ -199,15 +199,15 @@ func ConvertContinuousToDiscrete(feature Feature, features []*Instance) (Feature
 		},
 	}
 
-	convertedFeatures := make([]*Instance, len(features))
+	convertedFeatures := make([]*Instance, column.Len())
 
-	for index, feature := range features {
-		if feature == nil {
-			convertedFeatures[index] = nil
+	for record := range column.Instances() {
+		if record.Instance == nil {
+			convertedFeatures[record.Index] = nil
 			continue
 		}
 
-		convertedFeatures[index] = this.CreateContinuous(feature.ContinuousValue)
+		convertedFeatures[record.Index] = this.CreateContinuous(record.Instance.ContinuousValue)
 	}
 
 	return this, convertedFeatures
