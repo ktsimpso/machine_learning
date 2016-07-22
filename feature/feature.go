@@ -123,30 +123,33 @@ func NewDiscrete(name string, values []string) Feature {
 	return this
 }
 
-func ConvertContinuousToDiscrete(column Column) (Feature, []*Instance) {
+func ConvertContinuousToDiscrete(columnIndex int, data *Table) (Feature, []*Instance) {
 	total := 0.0
 	count := 0
+	columnFeature := data.LabelFromColumnIndex(columnIndex)
 
 	//TODO: validation
-	for record := range column.Instances() {
-		if record.Instance == nil {
+	for rowIndex := 0; rowIndex < data.NumRows(); rowIndex++ {
+		record := data.At(rowIndex, columnIndex)
+		if record == nil {
 			continue
 		}
 
 		//TODO: this could overflow
-		total += record.Instance.ContinuousValue
+		total += record.ContinuousValue
 		count += 1
 	}
 
 	mean := total / float64(count)
 	squaredDistance := 0.0
 
-	for record := range column.Instances() {
-		if record.Instance == nil {
+	for rowIndex := 0; rowIndex < data.NumRows(); rowIndex++ {
+		record := data.At(rowIndex, columnIndex)
+		if record == nil {
 			continue
 		}
 
-		distance := record.Instance.ContinuousValue - mean
+		distance := record.ContinuousValue - mean
 		squaredDistance += distance * distance
 	}
 
@@ -155,7 +158,7 @@ func ConvertContinuousToDiscrete(column Column) (Feature, []*Instance) {
 	var this Feature
 	this = Feature{
 		Discrete,
-		column.Feature().Name,
+		columnFeature.Name,
 		func(value string) *Instance {
 			floatValue, err := strconv.ParseFloat(value, 64)
 			if err != nil {
@@ -199,15 +202,16 @@ func ConvertContinuousToDiscrete(column Column) (Feature, []*Instance) {
 		},
 	}
 
-	convertedFeatures := make([]*Instance, column.Len())
+	convertedFeatures := make([]*Instance, data.NumRows())
 
-	for record := range column.Instances() {
-		if record.Instance == nil {
-			convertedFeatures[record.Index] = nil
+	for rowIndex := 0; rowIndex < data.NumRows(); rowIndex++ {
+		record := data.At(rowIndex, columnIndex)
+		if record == nil {
+			convertedFeatures[rowIndex] = nil
 			continue
 		}
 
-		convertedFeatures[record.Index] = this.CreateContinuous(record.Instance.ContinuousValue)
+		convertedFeatures[rowIndex] = this.CreateContinuous(record.ContinuousValue)
 	}
 
 	return this, convertedFeatures

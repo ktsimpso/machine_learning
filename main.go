@@ -87,7 +87,7 @@ func getDataFromFile(filename string, features []feature.Feature) (*feature.Tabl
 		if f.Type == feature.Discrete {
 			continue
 		}
-		data.AddColumn(feature.ConvertContinuousToDiscrete(data.GetColumn(f.TypeKey())))
+		data.AddColumn(feature.ConvertContinuousToDiscrete(data.ColumnIndexFromLabel(f.TypeKey()), data))
 	}
 
 	return data, nil

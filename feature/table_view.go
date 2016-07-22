@@ -1,34 +1,12 @@
 package feature
 
 type TableViewer interface {
-	GetColumn(typeKey TypeKey) Column
-	GetRow(index int) Row
-
-	Columns() <-chan Column
-	Rows() <-chan Row
-
 	NumColumns() int
 	NumRows() int
-}
 
-type Record struct {
-	Instance *Instance
-	Index    int
-	Feature  Feature
-}
-
-type Column interface {
-	At(index int) *Instance
-	Feature() Feature
-	Instances() <-chan Record
-	Len() int
-}
-
-type Row interface {
-	AtType(typeKey TypeKey) *Instance
-	Index() int
-	Instances() <-chan Record
-	Len() int
+	At(rowIndex, columnIndex int) *Instance
+	LabelFromColumnIndex(columnIndex int) *Feature
+	ColumnIndexFromLabel(typeKey TypeKey) int
 }
 
 type TableViewBuilder struct {
@@ -76,17 +54,27 @@ func (tvb *TableViewBuilder) WithRow(index int) *TableViewBuilder {
 }
 
 func (tvb *TableViewBuilder) Build() TableViewer {
+	featureMap := map[TypeKey]int{}
+
 	switch backing := tvb.backingView.(type) {
 	case *Table:
+		for index, backingIndex := range tvb.columnIndexes {
+			featureMap[backing.features[backingIndex].TypeKey()] = index
+		}
+
 		return &TableView{
 			backing,
+			featureMap,
 			tvb.columnIndexes,
 			tvb.rowIndexes,
 		}
 	case *TableView:
 		columnIndexes := make([]int, len(tvb.columnIndexes))
+		featureMap := map[TypeKey]int{}
+
 		for index, backingIndex := range tvb.columnIndexes {
 			columnIndexes[index] = backing.columnIndexes[backingIndex]
+			featureMap[backing.backingTable.features[backingIndex].TypeKey()] = index
 		}
 
 		rowIndexes := make([]int, len(tvb.rowIndexes))
@@ -96,6 +84,7 @@ func (tvb *TableViewBuilder) Build() TableViewer {
 
 		return &TableView{
 			backing.backingTable,
+			featureMap,
 			columnIndexes,
 			rowIndexes,
 		}
@@ -106,6 +95,7 @@ func (tvb *TableViewBuilder) Build() TableViewer {
 
 type TableView struct {
 	backingTable  *Table
+	featureMap    map[TypeKey]int
 	columnIndexes []int
 	rowIndexes    []int
 }
@@ -118,127 +108,14 @@ func (tv *TableView) NumRows() int {
 	return len(tv.rowIndexes)
 }
 
-func (tv *TableView) GetColumn(typeKey TypeKey) Column {
-	//TODO: make this efficient
-	targetTypeIndex := tv.backingTable.featureMap[typeKey]
-	for index, targetIndex := range tv.columnIndexes {
-		if targetTypeIndex == targetIndex {
-			return &TableViewColumn{
-				tv,
-				index,
-			}
-		}
-	}
-
-	panic("No column in view with type key")
+func (tv *TableView) At(rowIndex, columnIndex int) *Instance {
+	return tv.backingTable.rows[tv.rowIndexes[rowIndex]][tv.columnIndexes[columnIndex]]
 }
 
-func (tv *TableView) GetRow(index int) Row {
-	return &TableViewRow{
-		tv,
-		index,
-	}
+func (tv *TableView) LabelFromColumnIndex(columnIndex int) *Feature {
+	return &tv.backingTable.features[tv.columnIndexes[columnIndex]]
 }
 
-func (tv *TableView) Columns() <-chan Column {
-	ch := make(chan Column)
-
-	go func() {
-		defer close(ch)
-		for index := range tv.columnIndexes {
-			ch <- &TableViewColumn{
-				tv,
-				index,
-			}
-		}
-	}()
-
-	return ch
-}
-
-func (tv *TableView) Rows() <-chan Row {
-	ch := make(chan Row)
-
-	go func() {
-		defer close(ch)
-		for index := range tv.rowIndexes {
-			ch <- &TableViewRow{
-				tv,
-				index,
-			}
-		}
-	}()
-
-	return ch
-}
-
-type TableViewColumn struct {
-	tableView *TableView
-	index     int
-}
-
-func (tvc *TableViewColumn) At(index int) *Instance {
-	return tvc.tableView.backingTable.columns[tvc.tableView.columnIndexes[tvc.index]].instances[tvc.tableView.rowIndexes[index]]
-}
-
-func (tvc *TableViewColumn) Feature() Feature {
-	return tvc.tableView.backingTable.features[tvc.tableView.columnIndexes[tvc.index]]
-}
-
-func (tvc *TableViewColumn) Instances() <-chan Record {
-	ch := make(chan Record)
-
-	go func() {
-		defer close(ch)
-		backingColumn := tvc.tableView.backingTable.columns[tvc.tableView.columnIndexes[tvc.index]]
-		for index, backingIndex := range tvc.tableView.rowIndexes {
-			ch <- Record{
-				backingColumn.instances[backingIndex],
-				index,
-				tvc.tableView.backingTable.features[backingColumn.index],
-			}
-		}
-	}()
-
-	return ch
-}
-
-func (tvc *TableViewColumn) Len() int {
-	return tvc.tableView.NumRows()
-}
-
-type TableViewRow struct {
-	tableView *TableView
-	index     int
-}
-
-func (tvr *TableViewRow) AtType(typeKey TypeKey) *Instance {
-	//TOOD: error checking
-	return tvr.tableView.backingTable.rows[tvr.tableView.rowIndexes[tvr.index]].instances[tvr.tableView.backingTable.featureMap[typeKey]]
-}
-
-func (tvr *TableViewRow) Index() int {
-	return tvr.index
-}
-
-func (tvr *TableViewRow) Instances() <-chan Record {
-	ch := make(chan Record)
-
-	go func() {
-		defer close(ch)
-		backingRow := tvr.tableView.backingTable.rows[tvr.tableView.rowIndexes[tvr.index]]
-		for index, backingIndex := range tvr.tableView.columnIndexes {
-			ch <- Record{
-				backingRow.instances[backingIndex],
-				index,
-				tvr.tableView.backingTable.features[backingIndex],
-			}
-		}
-	}()
-
-	return ch
-}
-
-func (tvr *TableViewRow) Len() int {
-	return tvr.tableView.NumColumns()
+func (tv *TableView) ColumnIndexFromLabel(typeKey TypeKey) int {
+	return tv.featureMap[typeKey]
 }

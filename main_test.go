@@ -21,11 +21,11 @@ func TestMain(t *testing.T) {
 	trainingDataBuilder := feature.NewTableViewBuilder(data).WithAllColumns()
 	testDataBuidler := feature.NewTableViewBuilder(data).WithAllColumns()
 
-	for row := range data.Rows() {
+	for rowIndex := 0; rowIndex < data.NumRows(); rowIndex++ {
 		if rand.Float64() < 0.5 {
-			trainingDataBuilder.WithRow(row.Index())
+			trainingDataBuilder.WithRow(rowIndex)
 		} else {
-			testDataBuidler.WithRow(row.Index())
+			testDataBuidler.WithRow(rowIndex)
 		}
 	}
 
@@ -41,9 +41,10 @@ func TestMain(t *testing.T) {
 
 	count := 0
 	correct := 0
+	resultColumnIndex := testData.ColumnIndexFromLabel(IncomeFeature.TypeKey())
 
-	for record := range testData.GetColumn(IncomeFeature.TypeKey()).Instances() {
-		if (predictions[record.Index]).DiscreteValue == record.Instance.DiscreteValue {
+	for rowIndex := 0; rowIndex < testData.NumRows(); rowIndex++ {
+		if (predictions[rowIndex]).DiscreteValue == testData.At(rowIndex, resultColumnIndex).DiscreteValue {
 			correct += 1
 		}
 
@@ -59,8 +60,8 @@ func TestMain(t *testing.T) {
 	count = 0
 	correct = 0
 
-	for record := range trainingData.GetColumn(IncomeFeature.TypeKey()).Instances() {
-		if (predictions[record.Index]).DiscreteValue == record.Instance.DiscreteValue {
+	for rowIndex := 0; rowIndex < trainingData.NumRows(); rowIndex++ {
+		if (predictions[rowIndex]).DiscreteValue == trainingData.At(rowIndex, resultColumnIndex).DiscreteValue {
 			correct += 1
 		}
 

@@ -20,11 +20,11 @@ type DecisionTree struct {
 
 func (dt *DecisionTree) Train(data feature.TableViewer, resultFeature feature.Feature) error {
 	positiveCount := 0
-	resultColumn := data.GetColumn(resultFeature.TypeKey())
+	resultColumnIndex := data.ColumnIndexFromLabel(resultFeature.TypeKey())
 
-	for record := range resultColumn.Instances() {
-		//TODO: support more than binary features
-		if record.Instance.DiscreteValue == 1 {
+	for rowIndex := 0; rowIndex < data.NumRows(); rowIndex++ {
+		//TODO: support more than brinary features
+		if data.At(rowIndex, resultColumnIndex).DiscreteValue == 1 {
 			positiveCount += 1
 		}
 	}
@@ -33,33 +33,31 @@ func (dt *DecisionTree) Train(data feature.TableViewer, resultFeature feature.Fe
 	normailzedBaseScore := math.Abs(baseScore - 0.5)
 	highScore := 0.0
 
-	for column := range data.Columns() {
-		if column.Feature().Name == resultFeature.Name {
+	for columnIndex := 0; columnIndex < data.NumColumns(); columnIndex++ {
+		if columnIndex == resultColumnIndex {
 			continue
 		}
 
-		switch column.Feature().Type {
+		switch data.LabelFromColumnIndex(columnIndex).Type {
 		case feature.Discrete:
 			type valuesCounters struct {
 				positiveCount, totalCount int64
 			}
 			valuesPositiveCount := map[int64]*valuesCounters{}
 
-			for record := range column.Instances() {
-				index := record.Index
-				instance := record.Instance
+			for rowIndex := 0; rowIndex < data.NumRows(); rowIndex++ {
+				instance := data.At(rowIndex, columnIndex)
 				if instance == nil {
 					continue
 				}
 
 				instanceValue := instance.DiscreteValue
-				resultValue := resultColumn.At(index).DiscreteValue
 
 				if _, ok := valuesPositiveCount[instanceValue]; !ok {
 					valuesPositiveCount[instanceValue] = &valuesCounters{0, 0}
 				}
 
-				if resultValue == 1 {
+				if data.At(rowIndex, resultColumnIndex).DiscreteValue == 1 {
 					valuesPositiveCount[instanceValue].positiveCount += 1
 				}
 
@@ -70,7 +68,7 @@ func (dt *DecisionTree) Train(data feature.TableViewer, resultFeature feature.Fe
 				score := math.Abs(float64(valueCount.positiveCount)/float64(valueCount.totalCount) - 0.5)
 				if score > highScore {
 					highScore = score
-					sf := column.Feature().CreateDiscrete(key)
+					sf := data.LabelFromColumnIndex(columnIndex).CreateDiscrete(key)
 					dt.switchFeature = sf
 				}
 			}
@@ -80,12 +78,13 @@ func (dt *DecisionTree) Train(data feature.TableViewer, resultFeature feature.Fe
 	if highScore > normailzedBaseScore {
 		leftData := feature.NewTableViewBuilder(data).WithAllColumns()
 		rightData := feature.NewTableViewBuilder(data).WithAllColumns()
+		switchColumnIndex := data.ColumnIndexFromLabel(dt.switchFeature.Feature.TypeKey())
 
-		for record := range data.GetColumn(dt.switchFeature.Feature.TypeKey()).Instances() {
-			if isFeatureRight(record.Instance, dt.switchFeature) {
-				rightData.WithRow(record.Index)
+		for rowIndex := 0; rowIndex < data.NumRows(); rowIndex++ {
+			if isFeatureRight(data.At(rowIndex, switchColumnIndex), dt.switchFeature) {
+				rightData.WithRow(rowIndex)
 			} else {
-				leftData.WithRow(record.Index)
+				leftData.WithRow(rowIndex)
 			}
 		}
 
@@ -115,8 +114,8 @@ func (dt *DecisionTree) Train(data feature.TableViewer, resultFeature feature.Fe
 func (dt *DecisionTree) Predict(data feature.TableViewer, resultFeature feature.Feature) ([]feature.Instance, error) {
 	results := []feature.Instance{}
 
-	for row := range data.Rows() {
-		result, err := dt.predictRow(data, row, resultFeature)
+	for rowIndex := 0; rowIndex < data.NumRows(); rowIndex++ {
+		result, err := dt.predictRow(data, rowIndex, resultFeature)
 		if err != nil {
 			return nil, err
 		}
@@ -127,17 +126,17 @@ func (dt *DecisionTree) Predict(data feature.TableViewer, resultFeature feature.
 	return results, nil
 }
 
-func (dt *DecisionTree) predictRow(data feature.TableViewer, row feature.Row, resultFeature feature.Feature) (feature.Instance, error) {
+func (dt *DecisionTree) predictRow(data feature.TableViewer, rowIndex int, resultFeature feature.Feature) (feature.Instance, error) {
 	if dt.endState {
 		return *dt.prediction, nil
 	}
 
-	determiningFeature := row.AtType(dt.switchFeature.Feature.TypeKey())
+	columnIndex := data.ColumnIndexFromLabel(dt.switchFeature.Feature.TypeKey())
 
-	if isFeatureRight(determiningFeature, dt.switchFeature) {
-		return dt.right.predictRow(data, row, resultFeature)
+	if isFeatureRight(data.At(rowIndex, columnIndex), dt.switchFeature) {
+		return dt.right.predictRow(data, rowIndex, resultFeature)
 	} else {
-		return dt.left.predictRow(data, row, resultFeature)
+		return dt.left.predictRow(data, rowIndex, resultFeature)
 	}
 }
 
