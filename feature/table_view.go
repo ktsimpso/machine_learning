@@ -37,7 +37,7 @@ func (tvb *TableViewBuilder) WithAllRows() *TableViewBuilder {
 	tvb.rowIndexes = make([]int, tvb.backingView.NumRows())
 
 	for i := 0; i < len(tvb.rowIndexes); i++ {
-		tvb.columnIndexes[i] = i
+		tvb.rowIndexes[i] = i
 	}
 
 	return tvb
@@ -74,7 +74,7 @@ func (tvb *TableViewBuilder) Build() TableViewer {
 
 		for index, backingIndex := range tvb.columnIndexes {
 			columnIndexes[index] = backing.columnIndexes[backingIndex]
-			featureMap[backing.backingTable.features[backingIndex].TypeKey()] = index
+			featureMap[backing.backingTable.features[columnIndexes[index]].TypeKey()] = index
 		}
 
 		rowIndexes := make([]int, len(tvb.rowIndexes))

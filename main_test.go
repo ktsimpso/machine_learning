@@ -16,6 +16,8 @@ func TestMain(t *testing.T) {
 
 	data, err := getDataFromFile("data/training.tsv", FeatureList)
 	fmt.Println(data.NumRows())
+	fmt.Println(data.NumColumns())
+
 	assert.Nil(err)
 
 	trainingDataBuilder := feature.NewTableViewBuilder(data).WithAllColumns()

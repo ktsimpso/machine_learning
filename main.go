@@ -58,7 +58,7 @@ func main() {
 	}
 }
 
-func getDataFromFile(filename string, features []feature.Feature) (*feature.Table, error) {
+func getDataFromFile(filename string, features []feature.Feature) (feature.TableViewer, error) {
 	dataFile, err := os.Open(filename)
 	if err != nil {
 		return &feature.Table{}, err
@@ -83,12 +83,16 @@ func getDataFromFile(filename string, features []feature.Feature) (*feature.Tabl
 		data.AddStringRow(row)
 	}
 
-	for _, f := range FeatureList {
+	dataView := feature.NewTableViewBuilder(data).WithAllRows()
+
+	for index, f := range FeatureList {
 		if f.Type == feature.Discrete {
+			dataView.WithColumn(index)
 			continue
 		}
+		dataView.WithColumn(data.NumColumns())
 		data.AddColumn(feature.ConvertContinuousToDiscrete(data.ColumnIndexFromLabel(f.TypeKey()), data))
 	}
 
-	return data, nil
+	return dataView.Build(), nil
 }

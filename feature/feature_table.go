@@ -38,7 +38,6 @@ func (t *Table) AddColumn(feature Feature, column []*Instance) {
 	t.featureMap[feature.TypeKey()] = len(t.features) - 1
 
 	for index, _ := range t.rows {
-		//TODO: does the feature and featuremap get updated here?
 		t.rows[index] = append(t.rows[index], column[index])
 	}
 }
