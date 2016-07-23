@@ -109,7 +109,7 @@ func (tv *TableView) NumRows() int {
 }
 
 func (tv *TableView) At(rowIndex, columnIndex int) *Instance {
-	return tv.backingTable.rows[tv.rowIndexes[rowIndex]][tv.columnIndexes[columnIndex]]
+	return tv.backingTable.At(tv.rowIndexes[rowIndex], tv.columnIndexes[columnIndex])
 }
 
 func (tv *TableView) LabelFromColumnIndex(columnIndex int) *Feature {

@@ -1,9 +1,14 @@
 package feature
 
+import (
+	"fmt"
+)
+
 type Table struct {
 	features   []Feature
 	featureMap map[TypeKey]int
-	rows       [][]*Instance
+	items      []*Instance
+	numColumns int
 }
 
 func CreateTable(features []Feature) *Table {
@@ -16,34 +21,47 @@ func CreateTable(features []Feature) *Table {
 
 	table.features = features
 	table.featureMap = featureMap
-	table.rows = [][]*Instance{}
+	table.items = []*Instance{}
+	table.numColumns = len(features)
 
 	return &table
 }
 
 func (t *Table) AddStringRow(records []string) {
-	//TOOD: error checking
+	if len(records) != t.numColumns {
+		panic(fmt.Sprintf("Number of records added does not equal the number of columns. Expected: %d; Got: %d", t.numColumns, len(records)))
+	}
+
 	row := make([]*Instance, len(t.features))
 
 	for index, feature := range t.features {
 		row[index] = feature.Create(records[index])
 	}
 
-	t.rows = append(t.rows, row)
+	t.items = append(t.items, row...)
 }
 
 func (t *Table) AddColumn(feature Feature, column []*Instance) {
-	//TODO: error checking
+	if len(column) != t.NumRows() {
+		panic(fmt.Sprintf("Number of rows in added column does not equal the number of rows. Expected: %d; Got: %s", t.NumRows(), len(column)))
+	}
+
 	t.features = append(t.features, feature)
 	t.featureMap[feature.TypeKey()] = len(t.features) - 1
 
-	for index, _ := range t.rows {
-		t.rows[index] = append(t.rows[index], column[index])
+	items := make([]*Instance, len(t.items)+len(column))
+
+	for rowIndex := 0; rowIndex < t.NumRows(); rowIndex++ {
+		copy(items[rowIndex*t.numColumns+rowIndex:rowIndex*t.numColumns+t.numColumns+rowIndex], t.items[rowIndex*t.numColumns:rowIndex*t.numColumns+t.numColumns])
+		items[rowIndex*t.numColumns+t.numColumns+rowIndex] = column[rowIndex]
 	}
+
+	t.items = items
+	t.numColumns += 1
 }
 
 func (t *Table) At(rowIndex, columnIndex int) *Instance {
-	return t.rows[rowIndex][columnIndex]
+	return t.items[rowIndex*t.numColumns+columnIndex]
 }
 
 func (t *Table) LabelFromColumnIndex(columnIndex int) *Feature {
@@ -55,9 +73,9 @@ func (t *Table) ColumnIndexFromLabel(typeKey TypeKey) int {
 }
 
 func (t *Table) NumColumns() int {
-	return len(t.features)
+	return t.numColumns
 }
 
 func (t *Table) NumRows() int {
-	return len(t.rows)
+	return len(t.items) / t.numColumns
 }
