@@ -6,6 +6,13 @@ import (
 	"testing"
 )
 
+func TestEmptyTable(t *testing.T) {
+	assert := assert.New(t)
+	table := feature.CreateTable([]feature.Feature{})
+	assert.Equal(0, table.NumColumns())
+	assert.Equal(0, table.NumRows())
+}
+
 func TestNumColumns(t *testing.T) {
 	assert := assert.New(t)
 

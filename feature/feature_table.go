@@ -9,6 +9,7 @@ type Table struct {
 	featureMap map[TypeKey]int
 	items      []*Instance
 	numColumns int
+	numRows    int
 }
 
 func CreateTable(features []Feature) *Table {
@@ -39,6 +40,7 @@ func (t *Table) AddStringRow(records []string) {
 	}
 
 	t.items = append(t.items, row...)
+	t.numRows += 1
 }
 
 func (t *Table) AddColumn(feature Feature, column []*Instance) {
@@ -77,5 +79,5 @@ func (t *Table) NumColumns() int {
 }
 
 func (t *Table) NumRows() int {
-	return len(t.items) / t.numColumns
+	return t.numRows
 }

@@ -63,6 +63,13 @@ func baseTableView(table feature.TableViewer) feature.TableViewer {
 	return builder.Build()
 }
 
+func TestEmptyTableView(t *testing.T) {
+	assert := assert.New(t)
+	view := feature.NewTableViewBuilder(baseTable()).Build()
+	assert.Equal(0, view.NumColumns())
+	assert.Equal(0, view.NumRows())
+}
+
 func TestViewNumColumns(t *testing.T) {
 	assert := assert.New(t)
 
